@@ -1,54 +1,49 @@
-import gzip
+import os
+from dotenv import load_dotenv
 import pandas as pd
-from sqlalchemy import create_engine
-from io import BytesIO
+from sqlalchemy import create_engine, text
 
-PG_USER = "postgres"
-PG_PASSWORD = "123"
-PG_HOST = "localhost"
-PG_PORT = "5432"
-PG_DB = "postgres"
+# Load environment variables from .env file
+load_dotenv()
 
-FILES = {
-    "title.akas.tsv.gz": "title_akas",
-    "title.basics.tsv.gz": "title_basics",
-    "title.ratings.tsv.gz": "title_ratings",
-}
+# === CONNECTIONS ===
+LOCAL_DB = os.getenv("LOCAL_DB")
+LOCAL_USER = os.getenv("LOCAL_USER")
+LOCAL_PASSWORD = os.getenv("LOCAL_PASSWORD")
+LOCAL_HOST = os.getenv("LOCAL_HOST")
+LOCAL_PORT = os.getenv("LOCAL_PORT")
+DATABASE_URL = os.getenv("DATABASE_URL")
 
-def extract_tsv_gzip(file_path: str) -> pd.DataFrame:
-    """Extract TSV data from a gzip file into a pandas DataFrame."""
-    print(f"📦 Extracting {file_path}...")
-    with gzip.open(file_path, "rb") as f:
-        data = f.read()
-    df = pd.read_csv(BytesIO(data), sep="\t", na_values="\\N")
-    print(f"Extracted {len(df)} rows from {file_path}")
-    return df
+# Tables to transfer
+TABLES = ["title_ratings"]
 
+def transfer_table(table_name, source_engine, dest_engine, limit=100):
+    print(f"Reading first {limit} rows from '{table_name}' in local PostgreSQL...")
 
-def transform_data(df: pd.DataFrame) -> pd.DataFrame:
-    """Basic cleanup: standardize column names and drop empty rows."""
-    df.columns = [c.strip().lower().replace(" ", "_") for c in df.columns]
-    df = df.dropna(how="all")
-    return df
+    # Use SQLAlchemy text query to only get first `limit` rows
+    query = text(f"SELECT * FROM {table_name} LIMIT {limit};")
+    df = pd.read_sql_query(query, source_engine)
 
+    print(f"Retrieved {len(df)} rows from {table_name}")
 
-def load_to_postgres(df: pd.DataFrame, table_name: str):
-    """Load a DataFrame into PostgreSQL."""
-    print(f"⬆Loading into table '{table_name}'...")
-    engine = create_engine(
-        f"postgresql+psycopg2://{PG_USER}:{PG_PASSWORD}@{PG_HOST}:{PG_PORT}/{PG_DB}"
-    )
-    df.to_sql(table_name, engine, if_exists="replace", index=False)
-    print(f"Loaded {len(df)} rows into {table_name}\n")
-
+    print(f"Uploading '{table_name}' to Supabase...")
+    df.to_sql(table_name, dest_engine, if_exists="replace", index=False)
+    print(f"✅ Successfully transferred '{table_name}' to Supabase!\n")
 
 def main():
-    for file_name, table_name in FILES.items():
-        df = extract_tsv_gzip(file_name)
-        df = transform_data(df)
-        load_to_postgres(df, table_name)
-    print("All files loaded successfully!")
+    print("Connecting to databases...")
+    source_engine = create_engine(
+        f"postgresql+psycopg2://{LOCAL_USER}:{LOCAL_PASSWORD}@{LOCAL_HOST}:{LOCAL_PORT}/{LOCAL_DB}"
+    )
+    dest_engine = create_engine(DATABASE_URL)
 
+    for table in TABLES:
+        try:
+            transfer_table(table, source_engine, dest_engine, limit=100)
+        except Exception as e:
+            print(f"Error transferring {table}: {e}")
+
+    print("All tables processed.")
 
 if __name__ == "__main__":
     main()
