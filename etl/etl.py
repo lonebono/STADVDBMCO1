@@ -225,6 +225,15 @@ WITH unk_region AS (
 ), unk_time AS (
     SELECT time_id FROM {DWH_SCHEMA}.dim_time WHERE year = -1
 )
+
+clean_basics AS (
+    SELECT
+        tconst,
+        CAST(startYear AS INTEGER) AS numeric_year
+    FROM {STAGING_SCHEMA}.title_basics
+    WHERE startYear IS NOT NULL AND startYear != '\\N' AND startYear ~ '^[0-9]+$'
+)
+
 INSERT INTO {DWH_SCHEMA}.fact_film_version (
     title_id,
     region_id,
