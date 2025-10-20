@@ -154,7 +154,7 @@ WHERE genres IS NOT NULL AND genres != '\\N'
 ON CONFLICT (genre_name) DO NOTHING;
 
 -- Populate dim_time
-IINSERT INTO {DWH_SCHEMA}.dim_time (year, decade) VALUES (-1, -1) ON CONFLICT (year) DO NOTHING;
+INSERT INTO {DWH_SCHEMA}.dim_time (year, decade) VALUES (-1, -1) ON CONFLICT (year) DO NOTHING;
 INSERT INTO {DWH_SCHEMA}.dim_time (year, decade)
 SELECT
     DISTINCT(CAST(startYear AS INTEGER)) AS year,
