@@ -252,9 +252,8 @@ SELECT
     END
 FROM {STAGING_SCHEMA}.title_akas ta
 JOIN {DWH_SCHEMA}.dim_title dt ON ta.titleIdentifier = dt.tconst
-LEFT JOIN {STAGING_SCHEMA}.title_basics tb ON ta.titleIdentifier = tb.tconst
-LEFT JOIN {DWH_SCHEMA}.dim_time dtime
-    ON (tb.startYear != '\\N' AND tb.startYear ~ '^[0-9]+$' AND CAST(tb.startYear AS INTEGER) = dtime.year)
+LEFT JOIN clean_basics tb ON ta.titleIdentifier = tb.tconst
+LEFT JOIN {DWH_SCHEMA}.dim_time dtime ON tb.numeric_year = dtime.year
 LEFT JOIN {DWH_SCHEMA}.dim_region dr ON ta.region = dr.region_code
 LEFT JOIN {DWH_SCHEMA}.dim_language dl ON ta.language = dl.language_code;
 """
