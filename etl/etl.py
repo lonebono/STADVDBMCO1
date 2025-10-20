@@ -248,7 +248,7 @@ LEFT JOIN {DWH_SCHEMA}.dim_language dl ON ta.language = dl.language_code;
 """
 
 def run_step_2_transform_dwh(conn):
-    logging.info()
+    logging.info("Starting Step 2: Transform DWH...")
     try:
         with conn.cursor() as cursor:
             logging.info("Executing full transform script...")
