@@ -224,7 +224,7 @@ WITH unk_region AS (
     SELECT language_id FROM {DWH_SCHEMA}.dim_language WHERE language_code = 'UNK'
 ), unk_time AS (
     SELECT time_id FROM {DWH_SCHEMA}.dim_time WHERE year = -1
-)
+),
 
 clean_basics AS (
     SELECT
