@@ -2,6 +2,8 @@ import psycopg2
 import sys
 import logging
 
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+
 # --- Local DB Configuration ---
 DB_CONFIG = {
     "dbname": "mco1_imdb",
@@ -97,7 +99,7 @@ def setup_schemas_and_dwh_tables(conn):
 
 # --- Extract and Load ---
 def run_step_1_extract_load(conn):
-    logging.info("Starting Step 1: Extract and Load...")
+    logging.info("--- Starting Step 1: Extract & Load (with 'movie' filter) ---")
     try:
         with conn.cursor() as cursor:
             for table_name in SOURCE_TABLES:
@@ -105,18 +107,42 @@ def run_step_1_extract_load(conn):
                 staging_table = f"{STAGING_SCHEMA}.{table_name}"
                 
                 logging.info(f"Copying {source_table} -> {staging_table}...")
-                
-                # 1. Drop the old staging table if it exists
                 cursor.execute(f"DROP TABLE IF EXISTS {staging_table} CASCADE;")
-                # 2. Create the new staging table as a copy of the source
-                sql = f"CREATE TABLE {staging_table} AS SELECT * FROM {source_table};"
-                cursor.execute(sql)
+                sql = ""
+                if table_name == 'title_basics':
+                    # --- Filter title_basics ---
+                    logging.info("Applying 'movie' filter to title_basics...")
+                    sql = f"""
+                        CREATE TABLE {staging_table} AS
+                        SELECT * FROM {source_table}
+                        WHERE titleType = 'movie';
+                    """
+                elif table_name == 'title_ratings':
+                    # --- Filter title_ratings ---
+                    logging.info("Applying 'movie' filter to title_ratings...")
+                    sql = f"""
+                        CREATE TABLE {staging_table} AS
+                        SELECT tr.* FROM {source_table} tr
+                        JOIN {SOURCE_SCHEMA}.title_basics tb ON tr.tconst = tb.tconst
+                        WHERE tb.titleType = 'movie';
+                    """
+                elif table_name == 'title_akas':
+                    # --- Filter title_akas ---
+                    logging.info("Applying 'movie' filter to title_akas...")
+                    sql = f"""
+                        CREATE TABLE {staging_table} AS
+                        SELECT ta.* FROM {source_table} ta
+                        JOIN {SOURCE_SCHEMA}.title_basics tb ON ta.titleIdentifier = tb.tconst
+                        WHERE tb.titleType = 'movie';
+                    """
+                else:
+                    # Fallback for any other tables you might add
+                    sql = f"CREATE TABLE {staging_table} AS SELECT * FROM {source_table};"
                 
+                cursor.execute(sql)
             logging.info("All source tables copied to staging.")
-            
         conn.commit()
         logging.info("--- Step 1: Extract & Load COMPLETED ---")
-        
     except (Exception, psycopg2.DatabaseError) as error:
         logging.error(f"Error in Step 1 (Extract & Load): {error}")
         conn.rollback()
@@ -247,7 +273,6 @@ clean_basics AS (
     FROM {STAGING_SCHEMA}.title_basics
     WHERE startYear IS NOT NULL AND startYear != '\\N' AND startYear ~ '^[0-9]+$'
 )
-
 INSERT INTO {DWH_SCHEMA}.fact_film_version (
     title_id,
     region_id,
