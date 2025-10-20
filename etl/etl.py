@@ -188,19 +188,20 @@ SELECT
 FROM (
     SELECT startYear
     FROM {STAGING_SCHEMA}.title_basics
-    WHERE startYear IS NOT NULL AND startYear != '\\N' AND startYear ~ '^[0-9]+$'
+    WHERE startYear IS NOT NULL
+        AND TRIM(startYear::text) ~ '^[0-9]+$'
 ) AS numeric_years
 ON CONFLICT (year) DO NOTHING;
 
 -- Populate dim_title
 WITH akas_agg AS (
     SELECT
-        titleIdentifier AS tconst,
+        titleId AS tconst,
         COUNT(*) AS localization_count,
         COUNT(DISTINCT region) AS num_regions,
         COUNT(DISTINCT language) AS num_languages
     FROM {STAGING_SCHEMA}.title_akas
-    GROUP BY titleIdentifier
+    GROUP BY titleId
 ),
 clean_basics_with_ratings AS (
     SELECT
@@ -208,7 +209,7 @@ clean_basics_with_ratings AS (
         tb.primaryTitle,
         tb.titleType,
         CASE
-            WHEN tb.runtimeMinutes = '\\N' THEN NULL
+            WHEN tb.runtimeMinutes::text = '\\N' THEN NULL
             ELSE CAST(tb.runtimeMinutes AS INTEGER)
         END AS runtime_minutes_int,
         tr.averageRating,
@@ -216,7 +217,7 @@ clean_basics_with_ratings AS (
     FROM (
         SELECT *
         FROM {STAGING_SCHEMA}.title_basics
-        WHERE (runtimeMinutes ~ '^[0-9]+$' OR runtimeMinutes = '\\N')
+        WHERE (runtimeMinutes::text ~ '^[0-9]+$' OR runtimeMinutes IS NULL)
     ) tb
     LEFT JOIN {STAGING_SCHEMA}.title_ratings tr ON tb.tconst = tr.tconst
     WHERE tb.titleType = 'movie'
@@ -265,13 +266,13 @@ WITH unk_region AS (
 ), unk_time AS (
     SELECT time_id FROM {DWH_SCHEMA}.dim_time WHERE year = -1
 ),
-
 clean_basics AS (
     SELECT
         tconst,
         CAST(startYear AS INTEGER) AS numeric_year
     FROM {STAGING_SCHEMA}.title_basics
-    WHERE startYear IS NOT NULL AND startYear != '\\N' AND startYear ~ '^[0-9]+$'
+    WHERE startYear IS NOT NULL
+        AND TRIM(startYear::text) ~ '^[0-9]+$'
 )
 INSERT INTO {DWH_SCHEMA}.fact_film_version (
     title_id,
@@ -290,8 +291,8 @@ SELECT
         ELSE FALSE
     END
 FROM {STAGING_SCHEMA}.title_akas ta
-JOIN {DWH_SCHEMA}.dim_title dt ON ta.titleIdentifier = dt.tconst
-LEFT JOIN clean_basics tb ON ta.titleIdentifier = tb.tconst
+JOIN {DWH_SCHEMA}.dim_title dt ON ta.titleId = dt.tconst
+LEFT JOIN clean_basics tb ON ta.titleId = tb.tconst
 LEFT JOIN {DWH_SCHEMA}.dim_time dtime ON tb.numeric_year = dtime.year
 LEFT JOIN {DWH_SCHEMA}.dim_region dr ON ta.region = dr.region_code
 LEFT JOIN {DWH_SCHEMA}.dim_language dl ON ta.language = dl.language_code;
