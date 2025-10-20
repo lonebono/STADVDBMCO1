@@ -6,7 +6,7 @@ import logging
 DB_CONFIG = {
     "dbname": "mco1_imdb",
     "user": "postgres",
-    "password": "12EleanorKat17;",
+    "password": "EleanorKat17;",
     "host": "localhost",
     "port": "5432"
 }
