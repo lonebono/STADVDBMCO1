@@ -175,6 +175,25 @@ WITH akas_agg AS (
         COUNT(DISTINCT language) AS num_languages
     FROM {STAGING_SCHEMA}.title_akas
     GROUP BY titleIdentifier
+),
+clean_basics_with_ratings AS (
+    SELECT
+        tb.tconst,
+        tb.primaryTitle,
+        tb.titleType,
+        CASE
+            WHEN tb.runtimeMinutes = '\\N' THEN NULL
+            ELSE CAST(tb.runtimeMinutes AS INTEGER)
+        END AS runtime_minutes_int,
+        tr.averageRating,
+        tr.numVotes
+    FROM (
+        SELECT *
+        FROM {STAGING_SCHEMA}.title_basics
+        WHERE (runtimeMinutes ~ '^[0-9]+$' OR runtimeMinutes = '\\N')
+    ) tb
+    LEFT JOIN {STAGING_SCHEMA}.title_ratings tr ON tb.tconst = tr.tconst
+    WHERE tb.titleType = 'movie'
 )
 INSERT INTO {DWH_SCHEMA}.dim_title (
     tconst, primary_title, title_type, runtime_minutes,
@@ -182,22 +201,17 @@ INSERT INTO {DWH_SCHEMA}.dim_title (
     localization_count, num_regions, num_languages
 )
 SELECT
-    tb.tconst,
-    tb.primaryTitle,
-    tb.titleType,
-    CASE
-        WHEN tb.runtimeMinutes = '\\N' THEN NULL
-        ELSE CAST(tb.runtimeMinutes AS INTEGER)
-    END,
-    tr.averageRating,
-    tr.numVotes,
+    br.tconst,
+    br.primaryTitle,
+    br.titleType,
+    br.runtime_minutes_int,
+    br.averageRating,
+    br.numVotes,
     COALESCE(aa.localization_count, 0),
     COALESCE(aa.num_regions, 0),
     COALESCE(aa.num_languages, 0)
-FROM {STAGING_SCHEMA}.title_basics tb
-LEFT JOIN {STAGING_SCHEMA}.title_ratings tr ON tb.tconst = tr.tconst
-LEFT JOIN akas_agg aa ON tb.tconst = aa.tconst
-WHERE tb.titleType IN ('movie', 'tvMovie', 'tvSeries', 'tvMiniSeries', 'tvShort', 'short')
+FROM clean_basics_with_ratings br
+LEFT JOIN akas_agg aa ON br.tconst = aa.tconst
 ON CONFLICT (tconst) DO NOTHING;
 
 -- 2. POPULATE BRIDGE TABLE
