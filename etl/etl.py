@@ -132,7 +132,7 @@ def run_step_1_extract_load(conn):
                     sql = f"""
                         CREATE TABLE {staging_table} AS
                         SELECT ta.* FROM {source_table} ta
-                        JOIN {SOURCE_SCHEMA}.title_basics tb ON ta.titleIdentifier = tb.tconst
+                        JOIN {SOURCE_SCHEMA}.title_basics tb ON ta.titleId = tb.tconst
                         WHERE tb.titleType = 'movie';
                     """
                 else:
@@ -305,7 +305,6 @@ def run_step_2_transform_dwh(conn):
             cursor.execute(TRANSFORM_SQL)
             logging.info("Transform script executed.")
             
-        # If all queries succeeded, commit the transaction
         conn.commit()
         logging.info("--- Step 2: Transform (DWH) COMPLETED ---")
         
