@@ -12,6 +12,6 @@ It is assumed you are following the same folder structure in this repository
 4. Connect to your local database instance
    ex. psql -h localhost -U postgres -d mco1_imdb
 5. Create tables in your pgAdmin using raw_tables.sql
-6. Copy the unzipped data from your folder using the queries in load_raw.sql
-7. Design and create the dimension tables in Supabase for OLAP
-8. Use the ETL script (WIP)
+6. Use the ETL script to stage and populate the data warehouse
+   python etl\etl.py
+7.
