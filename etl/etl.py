@@ -122,7 +122,7 @@ def run_step_1_extract_load(conn):
         conn.rollback()
         raise
 
-# --- DWH Transformatiojn ---
+# --- DWH Transformation ---
 TRANSFORM_SQL = f"""
 -- 1. POPULATE DIMENSION TABLES
 TRUNCATE TABLE {DWH_SCHEMA}.dim_region RESTART IDENTITY CASCADE;
@@ -154,13 +154,16 @@ WHERE genres IS NOT NULL AND genres != '\\N'
 ON CONFLICT (genre_name) DO NOTHING;
 
 -- Populate dim_time
-INSERT INTO {DWH_SCHEMA}.dim_time (year, decade) VALUES (-1, -1) ON CONFLICT (year) DO NOTHING;
+IINSERT INTO {DWH_SCHEMA}.dim_time (year, decade) VALUES (-1, -1) ON CONFLICT (year) DO NOTHING;
 INSERT INTO {DWH_SCHEMA}.dim_time (year, decade)
 SELECT
     DISTINCT(CAST(startYear AS INTEGER)) AS year,
     FLOOR(CAST(startYear AS INTEGER) / 10) * 10 AS decade
-FROM {STAGING_SCHEMA}.title_basics
-WHERE startYear IS NOT NULL AND startYear != '\\N' AND startYear ~ '^[0-9]+$' -- Ensure it's numeric
+FROM (
+    SELECT startYear
+    FROM {STAGING_SCHEMA}.title_basics
+    WHERE startYear IS NOT NULL AND startYear != '\\N' AND startYear ~ '^[0-9]+$'
+) AS numeric_years
 ON CONFLICT (year) DO NOTHING;
 
 -- Populate dim_title
