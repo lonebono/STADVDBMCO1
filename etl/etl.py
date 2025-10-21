@@ -6,9 +6,9 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(
 
 # --- Local DB Configuration ---
 DB_CONFIG = {
-    "dbname": "mco1_imdb",
+    "dbname": "imdb",
     "user": "postgres",
-    "password": "EleanorKat17;",
+    "password": "123",
     "host": "localhost",
     "port": "5432"
 }
@@ -74,27 +74,6 @@ CREATE TABLE IF NOT EXISTS {DWH_SCHEMA}.fact_film_version (
     time_id INTEGER NOT NULL REFERENCES {DWH_SCHEMA}.dim_time(time_id),
     is_original_title BOOLEAN
 );
-
-ALTER TABLE dim_region
-ADD CONSTRAINT pk_region PRIMARY KEY (region_id);
-
-ALTER TABLE dim_language
-ADD CONSTRAINT pk_language PRIMARY KEY (language_id);
-
-ALTER TABLE dim_genre
-ADD CONSTRAINT pk_genre PRIMARY KEY (genre_id);
-
-ALTER TABLE dim_title
-ADD CONSTRAINT pk_title PRIMARY KEY (title_id);
-
-CREATE INDEX idx_fact_region_id ON fact_localization (region_id);
-CREATE INDEX idx_fact_language_id ON fact_localization (language_id);
-CREATE INDEX idx_fact_genre_id ON fact_genre (genre_id);
-CREATE INDEX idx_fact_title_id ON fact_localization (title_id);
-
-CREATE INDEX idx_fact_avg_ratings ON fact_localization (average_ratings);
-CREATE INDEX idx_fact_num_votes ON fact_localization (num_votes);
-
 """
 
 # --- Shchema and Table Setup ---
